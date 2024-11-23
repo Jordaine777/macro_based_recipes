@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Results</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Top Recipes Matching Your Macros</h1>
+        <h2>Target Macros: {{ target_macros }}</h2>
+        <ul>
+            {% for recipe in recipes %}
+            <li>
+                <h3>{{ recipe[0] }}</h3>
+                <img src="{{ recipe[2] }}" alt="Image of {{ recipe[0] }}">
+                <p>URL: <a href="{{ recipe[1] }}" target="_blank">{{ recipe[1] }}</a></p>
+                <p>Macros: {{ recipe[3] }}</p>
+                <p>Deviation: {{ recipe[4] }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+        <a href="/">Search Again</a>
+    </div>
+</body>
+</html>
