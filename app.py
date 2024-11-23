@@ -40,26 +40,32 @@ def calculate_deviation(recipe_macros, target_macros, weights):
 
 def search_recipes(target_macros, top_n=10):
     """
-    Search for the top N recipes that closely match the target macros.
+    Search for the top N unique recipes that closely match the target macros.
     """
-    # Define weights for each macro
     weights = {
         "calories": 1.0,
-        "protein": 0.5,  # Higher priority
+        "protein": 2.0,  # Higher priority
         "carbs": 1.0,
-        "fats": 2.0,     # Lower priority
+        "fats": 0.5,     # Lower priority
     }
-    
+
     results = []
+    seen_names = set()  # Track unique recipe names
+
     for _, row in recipes_df.iterrows():
         nutrients = parse_nutrients(row["nutrients"])
-        if nutrients:  # Skip recipes with missing/invalid nutrient data
+        if nutrients and row["name"] not in seen_names:  # Ensure uniqueness by name
             deviation = calculate_deviation(nutrients, target_macros, weights)
             results.append((row["name"], row["url"], row["image"], nutrients, deviation))
-    
+            seen_names.add(row["name"])  # Add name to the seen set
+
     # Sort results by deviation score
-    results = sorted(results, key=lambda x: x[-1])[:top_n]
-    return results
+    sorted_results = sorted(results, key=lambda x: x[-1])[:top_n]
+
+    # Return the structure expected by the template
+    return [(recipe[0], recipe[1], recipe[2], recipe[3]) for recipe in sorted_results]
+
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -71,12 +77,12 @@ def index():
         fats = int(request.form["fats"])
         meals = int(request.form["meals"])
 
-        # Calculate per-meal macros
+        # Calculate per-meal macros and round to whole numbers
         target_macros = {
-            "calories": calories / meals,
-            "protein": protein / meals,
-            "carbs": carbs / meals,
-            "fats": fats / meals,
+            "calories": round(calories / meals),
+            "protein": round(protein / meals),
+            "carbs": round(carbs / meals),
+            "fats": round(fats / meals),
         }
 
         # Search for recipes

@@ -4,24 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recipe Results</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Top Recipes Matching Your Macros</h1>
-        <h2>Target Macros: {{ target_macros }}</h2>
-        <ul>
-            {% for recipe in recipes %}
-            <li>
-                <h3>{{ recipe[0] }}</h3>
-                <img src="{{ recipe[2] }}" alt="Image of {{ recipe[0] }}">
-                <p>URL: <a href="{{ recipe[1] }}" target="_blank">{{ recipe[1] }}</a></p>
-                <p>Macros: {{ recipe[3] }}</p>
-                <p>Deviation: {{ recipe[4] }}</p>
-            </li>
-            {% endfor %}
-        </ul>
-        <a href="/">Search Again</a>
-    </div>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">Macro Recipe Finder</a>
+        </div>
+    </nav>
+
+    <!-- Results Header -->
+    <section class="results-header">
+        <div class="container">
+            <h1>Your Top Recipes</h1>
+            <p>Target Macros: 
+                Calories: <strong>{{ target_macros['calories'] }}</strong>, 
+                Protein: <strong>{{ target_macros['protein'] }}g</strong>, 
+                Carbs: <strong>{{ target_macros['carbs'] }}g</strong>, 
+                Fats: <strong>{{ target_macros['fats'] }}g</strong>
+            </p>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section">
+        <div class="container">
+            <div class="cards">
+                {% for recipe in recipes %}
+                <div class="card">
+                    <img src="{{ recipe[2] }}" alt="{{ recipe[0] }}" class="card-image">
+                    <div class="card-content">
+                        <h3>{{ recipe[0] }}</h3>
+                        <p>
+                            Calories: {{ recipe[3]['calories'] }} | 
+                            Protein: {{ recipe[3]['protein'] }}g | 
+                            Carbs: {{ recipe[3]['carbs'] }}g | 
+                            Fats: {{ recipe[3]['fats'] }}g
+                        </p>
+                        <a href="{{ recipe[1] }}" target="_blank" class="card-button">View Recipe</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Macro Recipe Finder. All rights reserved.</p>
+            <a href="/" class="back-button">Search Again</a>
+        </div>
+    </footer>
 </body>
 </html>
