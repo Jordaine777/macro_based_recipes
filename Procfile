@@ -1,1 +1,1 @@
-web: gunicorn app:app
+gunicorn macrobasedrecierecommender.wsgi:app
