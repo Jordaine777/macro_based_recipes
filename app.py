@@ -73,11 +73,18 @@ def recommend_recipes(target_macros, n_recommendations=10):
 def index():
     if request.method == "POST":
         # Extract target macros from form input
+        total_calories = float(request.form["calories"])
+        total_protein = float(request.form["protein"])
+        total_carbs = float(request.form["carbs"])
+        total_fats = float(request.form["fats"])
+        meals_per_day = int(request.form.get("meals", 3))  # Default to 3 meals
+
+        # Calculate per-meal macros
         target_macros = {
-            "calories": float(request.form["calories"]),
-            "protein": float(request.form["protein"]),
-            "carbs": float(request.form["carbs"]),
-            "fats": float(request.form["fats"])
+            "calories": int(total_calories / meals_per_day),
+            "protein": int(total_protein / meals_per_day),
+            "carbs": int(total_carbs / meals_per_day),
+            "fats": int(total_fats / meals_per_day),
         }
 
         # Get recommendations
