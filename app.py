@@ -1,96 +1,96 @@
 from flask import Flask, render_template, request
 import pandas as pd
-import ast
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.neighbors import NearestNeighbors
 
 app = Flask(__name__)
 
-# Load dataset
-recipes_csv = "food_dataset/recipes.csv"
-recipes_df = pd.read_csv(recipes_csv)
+# Load the dataset
+recipes_df = pd.read_csv("food_dataset/recipes.csv")
 
-def parse_nutrients(nutrient_str):
-    """
-    Parse the nutrients column into a dictionary and extract macros.
-    """
-    if not isinstance(nutrient_str, str) or nutrient_str.strip() == "":
-        return None  # Return None for empty or invalid nutrient data
+# Parse the nutrients column to extract macros if needed
+if "nutrients" in recipes_df.columns:
+    def parse_nutrients(nutrients_str):
+        try:
+            nutrients = eval(nutrients_str)
+            return {
+                "calories": int(nutrients.get("kcal", 0)),
+                "protein": int(nutrients.get("protein", "0g").replace("g", "")),
+                "carbs": int(nutrients.get("carbs", "0g").replace("g", "")),
+                "fats": int(nutrients.get("fat", "0g").replace("g", "")),
+            }
+        except:
+            return {"calories": 0, "protein": 0, "carbs": 0, "fats": 0}
 
-    try:
-        # Convert stringified dictionary into a Python dictionary
-        nutrients = ast.literal_eval(nutrient_str)
-        # Extract and clean macro values
-        macros = {
-            "calories": float(nutrients.get("kcal", "0").replace("g", "")),
-            "protein": float(nutrients.get("protein", "0").replace("g", "")),
-            "carbs": float(nutrients.get("carbs", "0").replace("g", "")),
-            "fats": float(nutrients.get("fat", "0").replace("g", ""))
-        }
-        return macros
-    except (ValueError, SyntaxError):
-        return None  # Return None for invalid parsing
+    macros = recipes_df["nutrients"].apply(parse_nutrients).apply(pd.Series)
+    recipes_df = pd.concat([recipes_df, macros], axis=1)
 
-def calculate_deviation(recipe_macros, target_macros, weights):
-    """
-    Calculate the weighted deviation score for a recipe based on the target macros.
-    """
-    return sum(
-        weights.get(macro, 1.0) * abs(recipe_macros.get(macro, 0) - target_macros.get(macro, 0))
-        for macro in target_macros
-    )
+# Filter valid rows
+recipes_df = recipes_df[(recipes_df["calories"] > 0) & (recipes_df["protein"] > 0)]
 
-def search_recipes(target_macros, top_n=10):
-    """
-    Search for the top N unique recipes that closely match the target macros.
-    """
-    weights = {
-        "calories": 1.0,
-        "protein": 2.0,  # Higher priority
-        "carbs": 1.0,
-        "fats": 0.5,     # Lower priority
-    }
+# Normalize macros
+macro_columns = ["calories", "protein", "carbs", "fats"]
+scaler = MinMaxScaler()
+normalized_macros = scaler.fit_transform(recipes_df[macro_columns])
 
+# Train the KNN model
+knn = NearestNeighbors(n_neighbors=10, metric="euclidean")
+knn.fit(normalized_macros)
+
+# Function to recommend recipes
+def recommend_recipes(target_macros, n_recommendations=10):
+    """
+    Recommend recipes based on target macros using KNN.
+
+    Includes name, macros, image, and link while avoiding duplicates.
+    """
+    normalized_target = scaler.transform([target_macros])
+    distances, indices = knn.kneighbors(normalized_target, n_neighbors=n_recommendations)
+
+    seen_names = set()
     results = []
-    seen_names = set()  # Track unique recipe names
 
-    for _, row in recipes_df.iterrows():
-        nutrients = parse_nutrients(row["nutrients"])
-        if nutrients and row["name"] not in seen_names:  # Ensure uniqueness by name
-            deviation = calculate_deviation(nutrients, target_macros, weights)
-            results.append((row["name"], row["url"], row["image"], nutrients, deviation))
-            seen_names.add(row["name"])  # Add name to the seen set
+    for idx, dist in zip(indices[0], distances[0]):
+        recipe = recipes_df.iloc[idx]
+        if recipe["name"] not in seen_names:
+            seen_names.add(recipe["name"])
+            results.append({
+                "name": recipe["name"],
+                "calories": recipe["calories"],
+                "protein": recipe["protein"],
+                "carbs": recipe["carbs"],
+                "fats": recipe["fats"],
+                "distance": dist,
+                "image": recipe.get("image", ""),  # Add image URL if available
+                "url": recipe.get("url", "#"),     # Add recipe link if available
+            })
 
-    # Sort results by deviation score
-    sorted_results = sorted(results, key=lambda x: x[-1])[:top_n]
-
-    # Return the structure expected by the template
-    return [(recipe[0], recipe[1], recipe[2], recipe[3]) for recipe in sorted_results]
+    return results
 
 
-
+# Route for the homepage
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        # Get form data
-        calories = int(request.form["calories"])
-        protein = int(request.form["protein"])
-        carbs = int(request.form["carbs"])
-        fats = int(request.form["fats"])
-        meals = int(request.form["meals"])
-
-        # Calculate per-meal macros and round to whole numbers
+        # Extract target macros from form input
         target_macros = {
-            "calories": round(calories / meals),
-            "protein": round(protein / meals),
-            "carbs": round(carbs / meals),
-            "fats": round(fats / meals),
+            "calories": float(request.form["calories"]),
+            "protein": float(request.form["protein"]),
+            "carbs": float(request.form["carbs"]),
+            "fats": float(request.form["fats"])
         }
 
-        # Search for recipes
-        top_recipes = search_recipes(target_macros)
+        # Get recommendations
+        recommendations = recommend_recipes(
+            [target_macros["calories"], target_macros["protein"], target_macros["carbs"], target_macros["fats"]]
+        )
 
-        return render_template("results.html", recipes=top_recipes, target_macros=target_macros)
+        # Render results
+        return render_template("results.html", recipes=recommendations, target_macros=target_macros)
 
     return render_template("index.html")
 
+
+# Run the app
 if __name__ == "__main__":
     app.run(debug=True)
