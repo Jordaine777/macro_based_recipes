@@ -5,7 +5,7 @@ import ast
 app = Flask(__name__)
 
 # Load dataset
-recipes_csv = "food_dataset\\recipes.csv"
+recipes_csv = "food_dataset/recipes.csv"
 recipes_df = pd.read_csv(recipes_csv)
 
 def parse_nutrients(nutrient_str):
